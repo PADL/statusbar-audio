@@ -4,8 +4,8 @@
 
 Cross-platform low-latency audio I/O: device enumeration, input and
 output streams, sample-format conversion, lock-free ring and
-presentation-time queues for bridging clock domains, BW64 file capture,
-and a mock backend for tests. Native backends are CoreAudio HAL on
+presentation-time queues for bridging clock domains, BW64 file capture and
+reading, and a mock backend for tests. Native backends are CoreAudio HAL on
 macOS and ALSA on Linux; everything above the backend is shared.
 
 ## Overview
@@ -63,6 +63,7 @@ the stream.
 - `AudioRing<T>` (+ `AudioRingBase`) — SPSC lock-free non-interleaved ring buffer with `push()` / `pop()` / `peek()` / `skip()` / `available_read()` / `available_write()`; storage comes from a `std::pmr::memory_resource`.
 - `AudioPresentationQueue<T>` (+ `AudioPresentationQueueBase`) — SPSC lock-free time-indexed queue. `write()` deposits samples at a presentation time, `read()` consumes a window starting at `center_time()` and advances; missing slots read as zero.
 - `Bw64Writer` — streaming float32 RIFF/WAVE writer with a BWF `bext` chunk; `open()` / `write_samples()` / `close()`.
+- `parse_bw64()` / `Bw64Info` / `Bw64Format` / `Bw64Bext` — a WAVE reader over a byte span (a mapped file): RIFF, RF64 and BW64 with `ds64`, PCM, IEEE float and `WAVE_FORMAT_EXTENSIBLE`, `bext`, and `chna` / `axml` / `iXML` as raw bodies; `bw64_channel_label()` names a channel from the extensible channel mask.
 - `AudioError` / `AudioErrorCategory` / `audio_error_category()` / `make_error_code()` — error enum registered as `std::is_error_code_enum`.
 - `MockDeviceProvider` / `MockOutputStream` / `MockInputStream` / `MockStreamFactory` / `make_mock_device()` / `make_default_mock_provider()` — test doubles that simulate periodic callbacks on their own thread, capture output, optionally inject errors, and feed pre-recorded or generated input (e.g. `generate_sine_wave()`).
 
@@ -134,13 +135,14 @@ int main()
 - `statusbar/audio/audio_ring.hpp` — `AudioRingBase`, `AudioRing<T>` SPSC FIFO ring buffer.
 - `statusbar/audio/audio_presentation_queue.hpp` — `AudioPresentationQueueBase`, `AudioPresentationQueue<T>` time-indexed SPSC queue.
 - `statusbar/audio/audio_bw64_writer.hpp` — `Bw64Writer` (BWF / RIFF WAVE writer with `bext` metadata).
+- `statusbar/audio/audio_bw64_reader.hpp` — `parse_bw64()`, `Bw64Info`, `Bw64Format`, `Bw64Bext`, `bw64_channel_label()` (RIFF / RF64 / BW64 WAVE reader).
 - `statusbar/audio/audio_mock.hpp` — `MockDeviceProvider`, `MockOutputStream`, `MockInputStream`, `MockStreamFactory`, `make_mock_device()`, `make_default_mock_provider()`.
 - `statusbar/audio/audio_device_darwin.hpp` — macOS backend: `DeviceManagerDarwin`, `OutputStreamDarwin`, `InputStreamDarwin` (included only when `__APPLE__`).
 - `statusbar/audio/audio_device_linux.hpp` — Linux backend: `DeviceManagerLinux`, `OutputStreamLinux`, `InputStreamLinux` (included only when `__linux__`).
 
 ## Dependencies
 
-- **Statusbar modules:** `status` from `statusbar-core` (`Status` / `StatusValue<T>` thread through `create()` / `start()` / validation / BW64 / convert), `itc` from `statusbar-core` (`itc::Published<double>` exposes `stream_time` from the mock streams), `sg14` from `statusbar-core` (`inplace_function` backs `AudioCallback<T>`); `dsp` from `statusbar-dsp` (`dsp::lround` in `audio_timing.hpp`, `dsp::zero` in `audio_presentation_queue.hpp`).
+- **Statusbar modules:** `status` from `statusbar-core` (`Status` / `StatusValue<T>` thread through `create()` / `start()` / validation / BW64 / convert), `itc` from `statusbar-core` (`itc::Published<double>` exposes `stream_time` from the mock streams), `buffer` from `statusbar-core` (`BufferDeserializer` walks a WAVE file's chunks in `parse_bw64()`), `sg14` from `statusbar-core` (`inplace_function` backs `AudioCallback<T>`); `dsp` from `statusbar-dsp` (`dsp::lround` in `audio_timing.hpp`, `dsp::zero` in `audio_presentation_queue.hpp`).
 - **System / external:**
   - macOS: `AudioUnit.framework`, `AudioToolbox.framework`, `CoreAudio.framework`, `CoreFoundation.framework`.
   - Linux: `libasound2` (ALSA).
@@ -157,7 +159,9 @@ int main()
 - **`AudioCallback` return value.** Returning `failure()` from the callback signals the stream to stop. The CoreAudio thread will not call again; the ALSA loop drops out after the current period.
 - **Mocks run a real thread.** `MockOutputStream` / `MockInputStream` spawn a `std::thread` that calls the user callback every `callback_frames` worth of simulated time. Install them through `ProviderGuard` so the swap is undone on destruction.
 - **`Bw64Writer` is RIFF, not RF64.** Files larger than 4 GiB are rejected; the RF64 `ds64` extension is not implemented. Samples are channel-interleaved float32 even though stream callbacks are non-interleaved — convert on the way to the writer. `clamp_sample()` maps NaN to `0.0F`; the float-to-int converters rely on it, since propagating NaN through `static_cast<int32_t>` is undefined behaviour.
+- **`parse_bw64()` locates samples; it does not convert them.** The result points into the parsed span (`data_offset`, `data_available`, the `bext` text views and raw chunk bodies) and lives as long as it. It accepts 16, 24 and 32-bit PCM and 32-bit IEEE float, refusing other codings with `AudioError::UnsupportedFormat` and a broken structure with `AudioError::MalformedFile`. A data chunk cut short by the span's end is not an error: `complete()` is false and `frames` counts the whole frames present, and chunks after it are not read. RF64 and BW64 need `ds64` as their first chunk (EBU Tech 3306, ITU-R BS.2088); its chunk-size table is skipped.
 
 ## Further reading
 
 - [LTC_DESIGN.md](LTC_DESIGN.md) — design notes for the linear-timecode reader/writer built on top of this module.
+- EBU Tech 3285 (Broadcast Wave Format, `bext`), EBU Tech 3306 (RF64), ITU-R BS.2088 (BW64), RFC 2361 (WAVE and AVI codec registries).

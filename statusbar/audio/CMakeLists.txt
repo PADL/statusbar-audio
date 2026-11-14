@@ -8,6 +8,7 @@ set(_audio_sources
     audio_mock.cpp
     audio_presentation_queue.cpp
     audio_provider.cpp
+    audio_bw64_reader.cpp
     audio_bw64_writer.cpp
     audio_ring.cpp)
 
@@ -24,6 +25,7 @@ statusbar_add_module(
   ${_audio_sources}
   DEPS
   statusbar-dsp
+  statusbar::buffer
   statusbar::status
   statusbar::itc
   TESTS
@@ -34,6 +36,7 @@ statusbar_add_module(
   audio_presentation_queue_test.cpp
   audio_render_thread_test.cpp
   audio_test.cpp
+  audio_bw64_reader_test.cpp
   audio_bw64_writer_test.cpp
   audio_timing_test.cpp)
 
@@ -66,3 +69,5 @@ add_executable(thread_priority_tool thread_priority_tool.cpp)
 target_link_libraries(thread_priority_tool PRIVATE statusbar)
 set_target_properties(thread_priority_tool
                       PROPERTIES OUTPUT_NAME statusbar-thread-priority-tool)
+
+add_audio_fuzzer(${CMAKE_CURRENT_LIST_DIR}/audio_bw64_reader_fuzzer.cpp)

@@ -29,6 +29,7 @@ enum class AudioError : uint32_t
     AlreadyRunning = 11,          ///< Stream is already running
     InitializationFailed = 12,    ///< Failed to initialize audio system
     RealtimePriorityDenied = 13,  ///< Could not obtain the requested realtime thread priority
+    MalformedFile = 14,           ///< An audio file's structure is broken (a WAVE chunk, its sizes or its fmt)
 };
 
 /// Error category for audio errors
