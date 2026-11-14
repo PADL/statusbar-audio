@@ -6,6 +6,7 @@
 // Audio Module - Main Export
 // Cross-platform low-latency audio I/O
 
+#include "statusbar/audio/audio_bw64_reader.hpp"
 #include "statusbar/audio/audio_config.hpp"
 #include "statusbar/audio/audio_convert.hpp"
 #include "statusbar/audio/audio_device.hpp"

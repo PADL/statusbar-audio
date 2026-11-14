@@ -9,6 +9,7 @@ set(_audio_sources
     audio_presentation_queue.cpp
     audio_provider.cpp
     audio_bw64_writer.cpp
+    audio_bw64_reader.cpp
     audio_ring.cpp)
 
 if(APPLE)
@@ -35,7 +36,11 @@ statusbar_add_module(
   audio_render_thread_test.cpp
   audio_test.cpp
   audio_bw64_writer_test.cpp
+  audio_bw64_reader_test.cpp
   audio_timing_test.cpp)
+
+# Fuzz harness (built only when -DENABLE_FUZZING=ON).
+add_audio_fuzzer(${CMAKE_CURRENT_LIST_DIR}/audio_bw64_reader_fuzzer.cpp)
 
 # Platform-specific audio libraries
 if(APPLE)

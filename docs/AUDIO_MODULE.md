@@ -63,6 +63,7 @@ the stream.
 - `AudioRing<T>` (+ `AudioRingBase`) — SPSC lock-free non-interleaved ring buffer with `push()` / `pop()` / `peek()` / `skip()` / `available_read()` / `available_write()`; storage comes from a `std::pmr::memory_resource`.
 - `AudioPresentationQueue<T>` (+ `AudioPresentationQueueBase`) — SPSC lock-free time-indexed queue. `write()` deposits samples at a presentation time, `read()` consumes a window starting at `center_time()` and advances; missing slots read as zero.
 - `Bw64Writer` — streaming float32 RIFF/WAVE writer with a BWF `bext` chunk; `open()` / `write_samples()` / `close()`.
+- `parse_bw64()` / `Bw64Info` / `Bw64Format` / `Bw64Bext` — reader for RIFF WAVE, RF64 and BW64 files held in memory (a `MappedFile`, say): the data chunk's offset, declared and available size and whole frames, the fmt chunk with an EXTENSIBLE SubFormat resolved to `Bw64Sample` (16/24/32-bit PCM, 32-bit float), `bext` field by field, and `chna` / `axml` / `iXML` raw; every view points into the span. `bw64_channel_label()` names a channel from the EXTENSIBLE mask.
 - `AudioError` / `AudioErrorCategory` / `audio_error_category()` / `make_error_code()` — error enum registered as `std::is_error_code_enum`.
 - `MockDeviceProvider` / `MockOutputStream` / `MockInputStream` / `MockStreamFactory` / `make_mock_device()` / `make_default_mock_provider()` — test doubles that simulate periodic callbacks on their own thread, capture output, optionally inject errors, and feed pre-recorded or generated input (e.g. `generate_sine_wave()`).
 
@@ -134,6 +135,7 @@ int main()
 - `statusbar/audio/audio_ring.hpp` — `AudioRingBase`, `AudioRing<T>` SPSC FIFO ring buffer.
 - `statusbar/audio/audio_presentation_queue.hpp` — `AudioPresentationQueueBase`, `AudioPresentationQueue<T>` time-indexed SPSC queue.
 - `statusbar/audio/audio_bw64_writer.hpp` — `Bw64Writer` (BWF / RIFF WAVE writer with `bext` metadata).
+- `statusbar/audio/audio_bw64_reader.hpp` — `parse_bw64()`, `Bw64Info`, `Bw64Format`, `Bw64Bext`, `Bw64Sample`, `Bw64Container`, `bw64_channel_label()`.
 - `statusbar/audio/audio_mock.hpp` — `MockDeviceProvider`, `MockOutputStream`, `MockInputStream`, `MockStreamFactory`, `make_mock_device()`, `make_default_mock_provider()`.
 - `statusbar/audio/audio_device_darwin.hpp` — macOS backend: `DeviceManagerDarwin`, `OutputStreamDarwin`, `InputStreamDarwin` (included only when `__APPLE__`).
 - `statusbar/audio/audio_device_linux.hpp` — Linux backend: `DeviceManagerLinux`, `OutputStreamLinux`, `InputStreamLinux` (included only when `__linux__`).
@@ -156,6 +158,7 @@ int main()
 - **`AudioRing` and `AudioPresentationQueue` are strictly SPSC.** One producer thread for `push()` / `write()`, one consumer for `pop()` / `read()` / `advance()`; `available_*` / `center_time()` / `can_*` are safe from either side. Storage comes from a `std::pmr::memory_resource` — pass an arena-backed one to guarantee no heap activity in the callback. `AudioRing::push` of fewer channels than the ring holds fills the unspecified channels with silence (write_pos advances for all channels, so they would otherwise expose stale wrapped samples). `AudioPresentationQueue::read` zeros each slot as it consumes it, so late / missing samples appear as silence rather than as data from a previous wrap.
 - **`AudioCallback` return value.** Returning `failure()` from the callback signals the stream to stop. The CoreAudio thread will not call again; the ALSA loop drops out after the current period.
 - **Mocks run a real thread.** `MockOutputStream` / `MockInputStream` spawn a `std::thread` that calls the user callback every `callback_frames` worth of simulated time. Install them through `ProviderGuard` so the swap is undone on destruction.
+- **`parse_bw64()` copies nothing.** The result's views point into the span given and are good for as long as it is. A `data` chunk cut short by the end of the span is not an error: `frames` counts what is there and `complete()` is false, so a file still being written reads as far as it goes; every other chunk must be whole (`AudioError::MalformedFile`). 8-bit PCM, 64-bit float, A-law, mu-law and compressed tags are `AudioError::UnsupportedFormat`.
 - **`Bw64Writer` is RIFF, not RF64.** Files larger than 4 GiB are rejected; the RF64 `ds64` extension is not implemented. Samples are channel-interleaved float32 even though stream callbacks are non-interleaved — convert on the way to the writer. `clamp_sample()` maps NaN to `0.0F`; the float-to-int converters rely on it, since propagating NaN through `static_cast<int32_t>` is undefined behaviour.
 
 ## Further reading

@@ -31,6 +31,8 @@ auto AudioErrorCategory::message(int const ev) const -> std::string
             return "Sample format not supported";
         case AudioError::UnsupportedSampleRate:
             return "Sample rate not supported";
+        case AudioError::MalformedFile:
+            return "File structure is malformed";
         case AudioError::StreamNotRunning:
             return "Audio stream is not running";
         case AudioError::AlreadyRunning:
