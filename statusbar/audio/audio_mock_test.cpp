@@ -157,9 +157,7 @@ TEST(mock_output, start_stop)
 
     EXPECT_TRUE(result.has_value());
 
-    while (stream.is_running()) {
-        std::this_thread::sleep_for(std::chrono::milliseconds(1));
-    }
+    stream.wait_until_stopped();
 
     EXPECT_EQ(callback_count.load(), 5);
     EXPECT_EQ(stream.callback_count(), 5);
@@ -186,15 +184,11 @@ TEST(mock_output, restart_after_self_stop)
     };
 
     EXPECT_TRUE(stream.start(silence).has_value());
-    while (stream.is_running()) {
-        std::this_thread::sleep_for(std::chrono::milliseconds(1));
-    }
+    stream.wait_until_stopped();
 
     // Restart directly, without stop() — start() must join the lingering thread.
     EXPECT_TRUE(stream.start(silence).has_value());
-    while (stream.is_running()) {
-        std::this_thread::sleep_for(std::chrono::milliseconds(1));
-    }
+    stream.wait_until_stopped();
 
     // And a stop() after a self-stop, then restart, is also safe.
     stream.stop();
@@ -224,9 +218,7 @@ TEST(mock_output, capture_output)
 
     EXPECT_TRUE(result.has_value());
 
-    while (stream.is_running()) {
-        std::this_thread::sleep_for(std::chrono::milliseconds(1));
-    }
+    stream.wait_until_stopped();
 
     // Verify captured output
     auto const& ch0 = stream.get_output_channel(0);
@@ -301,9 +293,7 @@ TEST(mock_output, callback_negative_return_stops)
 
     EXPECT_TRUE(result.has_value());
 
-    while (stream.is_running()) {
-        std::this_thread::sleep_for(std::chrono::milliseconds(1));
-    }
+    stream.wait_until_stopped();
 
     EXPECT_EQ(count.load(), 3);
 }
@@ -357,9 +347,7 @@ TEST(mock_input, receive_data)
 
     EXPECT_TRUE(result.has_value());
 
-    while (stream.is_running()) {
-        std::this_thread::sleep_for(std::chrono::milliseconds(1));
-    }
+    stream.wait_until_stopped();
 
     EXPECT_TRUE(std::fabs(peak_ch0.load() - 0.25f) < 0.001f);
     EXPECT_TRUE(std::fabs(peak_ch1.load() - 0.25f) < 0.001f);
@@ -387,9 +375,7 @@ TEST(mock_input, sine_wave_generator)
 
     EXPECT_TRUE(result.has_value());
 
-    while (stream.is_running()) {
-        std::this_thread::sleep_for(std::chrono::milliseconds(1));
-    }
+    stream.wait_until_stopped();
 
     // Peak should be close to amplitude (0.8)
     EXPECT_TRUE(peak.load() > 0.7f && peak.load() <= 0.8f);
@@ -474,9 +460,7 @@ TEST(mock_output, stream_time_accessor)
     auto result = stream.start([](AudioCallbackParamsFloat const&) -> statusbar::Status { return statusbar::success(); });
     EXPECT_TRUE(result.has_value());
 
-    while (stream.is_running()) {
-        std::this_thread::sleep_for(std::chrono::milliseconds(1));
-    }
+    stream.wait_until_stopped();
 
     // After callbacks, stream_time should have advanced
     // 10 callbacks * 48 frames / 48000 Hz = 0.01 seconds
@@ -508,9 +492,7 @@ TEST(mock_output, total_frames_accessor)
     auto result = stream.start([](AudioCallbackParamsFloat const&) -> statusbar::Status { return statusbar::success(); });
     EXPECT_TRUE(result.has_value());
 
-    while (stream.is_running()) {
-        std::this_thread::sleep_for(std::chrono::milliseconds(1));
-    }
+    stream.wait_until_stopped();
 
     // 5 callbacks * 64 frames = 320 total frames
     EXPECT_EQ(stream.total_frames(), 320);
@@ -529,9 +511,7 @@ TEST(mock_input, stream_time_accessor)
     auto result = stream.start([](AudioCallbackParamsFloat const&) -> statusbar::Status { return statusbar::success(); });
     EXPECT_TRUE(result.has_value());
 
-    while (stream.is_running()) {
-        std::this_thread::sleep_for(std::chrono::milliseconds(1));
-    }
+    stream.wait_until_stopped();
 
     EXPECT_TRUE(stream.stream_time() > 0.0);
 }
@@ -571,9 +551,7 @@ TEST(mock_input, callback_count_accessor)
     auto result = stream.start([](AudioCallbackParamsFloat const&) -> statusbar::Status { return statusbar::success(); });
     EXPECT_TRUE(result.has_value());
 
-    while (stream.is_running()) {
-        std::this_thread::sleep_for(std::chrono::milliseconds(1));
-    }
+    stream.wait_until_stopped();
 
     EXPECT_EQ(stream.callback_count(), 7);
 }
@@ -591,9 +569,7 @@ TEST(mock_input, total_frames_accessor)
     auto result = stream.start([](AudioCallbackParamsFloat const&) -> statusbar::Status { return statusbar::success(); });
     EXPECT_TRUE(result.has_value());
 
-    while (stream.is_running()) {
-        std::this_thread::sleep_for(std::chrono::milliseconds(1));
-    }
+    stream.wait_until_stopped();
 
     // 4 callbacks * 64 frames = 256 total frames
     EXPECT_EQ(stream.total_frames(), 256);

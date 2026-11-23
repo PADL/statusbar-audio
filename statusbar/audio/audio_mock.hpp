@@ -123,6 +123,12 @@ class MockOutputStream : public OutputStream
 
     void stop() override;
 
+    /// Block until the simulation has stopped by itself: max_callbacks
+    /// reached, or the callback asked for it. This waits for that event
+    /// and does not ask the stream to stop, so a caller (a test) needs
+    /// neither a sleep nor a guess at how long the callbacks take.
+    void wait_until_stopped();
+
     auto is_running() const noexcept -> bool override { return running_; }
 
     auto config() const noexcept -> AudioConfig const& override { return config_; }
@@ -252,6 +258,12 @@ class MockInputStream : public InputStream
     [[nodiscard]] auto start(AudioCallbackFloat&& callback) -> Status override;
 
     void stop() override;
+
+    /// Block until the simulation has stopped by itself: max_callbacks
+    /// reached, or the callback asked for it. This waits for that event
+    /// and does not ask the stream to stop, so a caller (a test) needs
+    /// neither a sleep nor a guess at how long the callbacks take.
+    void wait_until_stopped();
 
     auto is_running() const noexcept -> bool override { return running_; }
 

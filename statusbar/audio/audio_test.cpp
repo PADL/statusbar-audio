@@ -193,11 +193,8 @@ TEST(audio_mock, output_stream_start_stop)
     auto start_result = stream.start(std::move(callback));
     EXPECT_TRUE(start_result.has_value());
 
-    // Wait for stream to auto-stop (max_callbacks = 5) with timeout
-    auto deadline = std::chrono::steady_clock::now() + std::chrono::milliseconds(1000);
-    while (stream.is_running() && std::chrono::steady_clock::now() < deadline) {
-        std::this_thread::sleep_for(std::chrono::microseconds(100));
-    }
+    // Wait for the stream to stop by itself (max_callbacks = 5), however long that takes.
+    stream.wait_until_stopped();
 
     // Stream should have auto-stopped due to max_callbacks limit
     EXPECT_FALSE(stream.is_running());
@@ -274,11 +271,8 @@ TEST(audio_mock, input_stream_with_data)
     auto start_result = stream.start(std::move(callback));
     EXPECT_TRUE(start_result.has_value());
 
-    // Wait for stream to auto-stop (max_callbacks = 3) with timeout
-    auto deadline = std::chrono::steady_clock::now() + std::chrono::milliseconds(1000);
-    while (stream.is_running() && std::chrono::steady_clock::now() < deadline) {
-        std::this_thread::sleep_for(std::chrono::microseconds(100));
-    }
+    // Wait for the stream to stop by itself (max_callbacks = 3), however long that takes.
+    stream.wait_until_stopped();
 
     EXPECT_TRUE(callback_count > 0);
     EXPECT_TRUE(peak > 0.0f);  // Should have received some non-zero data

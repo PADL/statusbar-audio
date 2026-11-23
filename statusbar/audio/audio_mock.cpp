@@ -129,6 +129,13 @@ auto MockOutputStream::start(AudioCallbackFloat&& callback) -> Status
     return success();
 }
 
+void MockOutputStream::wait_until_stopped()
+{
+    if (simulation_thread_.joinable()) {
+        simulation_thread_.join();
+    }
+}
+
 void MockOutputStream::stop()
 {
     // Always join a lingering thread, even after a self-stop (max_callbacks)
@@ -320,6 +327,13 @@ auto MockInputStream::start(AudioCallbackFloat&& callback) -> Status
     });
 
     return success();
+}
+
+void MockInputStream::wait_until_stopped()
+{
+    if (simulation_thread_.joinable()) {
+        simulation_thread_.join();
+    }
 }
 
 void MockInputStream::stop()
